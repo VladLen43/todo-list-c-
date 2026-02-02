@@ -10,7 +10,7 @@ public class TodoTask
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public TaskPriority Priority { get; set; } = TaskPriority.Medium;
-    public TaskStatus Status { get; set; } = TaskStatus.New;
+    public TodoListApp.Core.Enums.TaskStatus Status { get; set; } = TodoListApp.Core.Enums.TaskStatus.New;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DueDate { get; set; }

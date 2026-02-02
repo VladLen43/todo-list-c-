@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using TodoListApp.Core.Enums;
 using TodoListApp.WPF.Helpers;
@@ -14,7 +18,7 @@ public class MainViewModel : ViewModelBase
     private ObservableCollection<CategoryModel> _categories = new();
     private TaskModel? _selectedTask;
     private string _searchText = string.Empty;
-    private TaskStatus? _filterStatus;
+    private TodoListApp.Core.Enums.TaskStatus? _filterStatus;
     private int? _filterCategoryId;
     private Dictionary<string, int> _statistics = new();
 
@@ -26,7 +30,7 @@ public class MainViewModel : ViewModelBase
         EditTaskCommand = new RelayCommand(_ => EditTask(), _ => SelectedTask != null);
         DeleteTaskCommand = new RelayCommand(async _ => await DeleteTask(), _ => SelectedTask != null);
         RefreshCommand = new RelayCommand(async _ => await LoadData());
-        CompleteTaskCommand = new RelayCommand(async _ => await CompleteTask(), _ => SelectedTask != null && SelectedTask.Status != TaskStatus.Completed);
+        CompleteTaskCommand = new RelayCommand(async _ => await CompleteTask(), _ => SelectedTask != null && SelectedTask.Status != TodoListApp.Core.Enums.TaskStatus.Completed);
         
         _ = LoadData();
     }
@@ -139,14 +143,14 @@ public class MainViewModel : ViewModelBase
             await _apiService.UpdateTaskAsync(
                 SelectedTask.TaskId,
                 null, null, null,
-                TaskStatus.Completed,
+                TodoListApp.Core.Enums.TaskStatus.Completed,
                 null, null
             );
             await LoadData();
         }
     }
 
-    public async Task SetFilter(TaskStatus? status, int? categoryId)
+    public async Task SetFilter(TodoListApp.Core.Enums.TaskStatus? status, int? categoryId)
     {
         _filterStatus = status;
         _filterCategoryId = categoryId;

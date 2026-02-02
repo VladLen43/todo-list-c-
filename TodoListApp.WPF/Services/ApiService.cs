@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TodoListApp.Core.Enums;
 using TodoListApp.WPF.Models;
@@ -17,10 +18,15 @@ public class ApiService : IApiService
 
     public ApiService()
     {
-        _httpClient = new HttpClient
-        {
-            BaseAddress = new Uri(BaseUrl)
-        };
+        _httpClient = new HttpClient();
+    }
+    
+    private string GetFullUrl(string endpoint)
+    {
+        // Убираем начальный / если есть
+        if (endpoint.StartsWith("/"))
+            endpoint = endpoint.Substring(1);
+        return $"{BaseUrl}/{endpoint}";
     }
 
     public string? GetToken() => _token;
@@ -29,6 +35,10 @@ public class ApiService : IApiService
 
     private void SetAuthHeader()
     {
+        // Удаляем старый заголовок, если есть
+        _httpClient.DefaultRequestHeaders.Remove("Authorization");
+        
+        // Устанавливаем новый заголовок, если токен есть
         if (!string.IsNullOrEmpty(_token))
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token);
@@ -39,7 +49,7 @@ public class ApiService : IApiService
     {
         try
         {
-            var response = await _httpClient.PostAsJsonAsync("/auth/login", new { username, password });
+            var response = await _httpClient.PostAsJsonAsync(GetFullUrl("auth/login"), new { username, password });
 
             if (response.IsSuccessStatusCode)
             {
@@ -57,11 +67,11 @@ public class ApiService : IApiService
         }
     }
 
-    public async Task<bool> RegisterAsync(string username, string email, string password, string? firstName, string? lastName)
+    public async Task<string?> RegisterAsync(string username, string email, string password, string? firstName, string? lastName)
     {
         try
         {
-            var response = await _httpClient.PostAsJsonAsync("/auth/register", new
+            var response = await _httpClient.PostAsJsonAsync(GetFullUrl("auth/register"), new
             {
                 username,
                 email,
@@ -75,27 +85,57 @@ public class ApiService : IApiService
                 var result = await response.Content.ReadFromJsonAsync<RegisterResponse>();
                 _token = result?.Token;
                 SetAuthHeader();
-                return true;
+                return null; // Успех - нет ошибки
             }
 
-            return false;
+            // Пытаемся прочитать сообщение об ошибке из ответа
+            try
+            {
+                var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                var errorMessage = errorResponse?.Message ?? "Ошибка регистрации";
+                
+                // Если 404, добавляем информацию о URL
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    var requestUrl = response.RequestMessage?.RequestUri?.ToString() ?? "/auth/register";
+                    return $"Эндпоинт не найден (404). Проверьте, что API запущен и доступен по адресу {BaseUrl}. Запрос: {requestUrl}";
+                }
+                
+                return errorMessage;
+            }
+            catch
+            {
+                var statusCode = response.StatusCode;
+                var requestUrl = response.RequestMessage?.RequestUri?.ToString() ?? "/auth/register";
+                
+                if (statusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return $"Эндпоинт не найден (404). Проверьте, что API запущен на {BaseUrl}. Запрос: {requestUrl}";
+                }
+                
+                return $"Ошибка регистрации: {statusCode}. URL: {requestUrl}";
+            }
         }
-        catch
+        catch (HttpRequestException ex)
         {
-            return false;
+            return $"Не удалось подключиться к серверу. Убедитесь, что API запущен. Ошибка: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            return $"Ошибка: {ex.Message}";
         }
     }
 
-    public async Task<List<TaskModel>> GetTasksAsync(TaskStatus? status = null, int? categoryId = null)
+    public async Task<List<TaskModel>> GetTasksAsync(TodoListApp.Core.Enums.TaskStatus? status = null, int? categoryId = null)
     {
         try
         {
             SetAuthHeader();
-            var query = $"/tasks?";
+            var query = "tasks?";
             if (status.HasValue) query += $"status={status.Value}&";
             if (categoryId.HasValue) query += $"categoryId={categoryId.Value}&";
 
-            var tasks = await _httpClient.GetFromJsonAsync<List<TaskModel>>(query);
+            var tasks = await _httpClient.GetFromJsonAsync<List<TaskModel>>(GetFullUrl(query));
             return tasks ?? new List<TaskModel>();
         }
         catch
@@ -109,7 +149,7 @@ public class ApiService : IApiService
         try
         {
             SetAuthHeader();
-            var response = await _httpClient.PostAsJsonAsync("/tasks", new
+            var response = await _httpClient.PostAsJsonAsync(GetFullUrl("tasks"), new
             {
                 title,
                 description,
@@ -124,20 +164,34 @@ public class ApiService : IApiService
                 return await response.Content.ReadFromJsonAsync<TaskModel>();
             }
 
-            return null;
+            // Читаем сообщение об ошибке
+            try
+            {
+                var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                throw new Exception(errorResponse?.Message ?? $"Ошибка создания задачи: {response.StatusCode}");
+            }
+            catch (JsonException)
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Ошибка создания задачи: {response.StatusCode}. {errorText}");
+            }
         }
-        catch
+        catch (HttpRequestException ex)
         {
-            return null;
+            throw new Exception($"Не удалось подключиться к серверу: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            throw;
         }
     }
 
-    public async Task<TaskModel?> UpdateTaskAsync(int taskId, string? title, string? description, TaskPriority? priority, TaskStatus? status, int? categoryId, DateTime? dueDate)
+    public async Task<TaskModel?> UpdateTaskAsync(int taskId, string? title, string? description, TaskPriority? priority, TodoListApp.Core.Enums.TaskStatus? status, int? categoryId, DateTime? dueDate)
     {
         try
         {
             SetAuthHeader();
-            var response = await _httpClient.PutAsJsonAsync($"/tasks/{taskId}", new
+            var response = await _httpClient.PutAsJsonAsync(GetFullUrl($"tasks/{taskId}"), new
             {
                 title,
                 description,
@@ -152,11 +206,25 @@ public class ApiService : IApiService
                 return await response.Content.ReadFromJsonAsync<TaskModel>();
             }
 
-            return null;
+            // Читаем сообщение об ошибке
+            try
+            {
+                var errorResponse = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                throw new Exception(errorResponse?.Message ?? $"Ошибка обновления задачи: {response.StatusCode}");
+            }
+            catch (JsonException)
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Ошибка обновления задачи: {response.StatusCode}. {errorText}");
+            }
         }
-        catch
+        catch (HttpRequestException ex)
         {
-            return null;
+            throw new Exception($"Не удалось подключиться к серверу: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            throw;
         }
     }
 
@@ -165,7 +233,7 @@ public class ApiService : IApiService
         try
         {
             SetAuthHeader();
-            var response = await _httpClient.DeleteAsync($"/tasks/{taskId}");
+            var response = await _httpClient.DeleteAsync(GetFullUrl($"tasks/{taskId}"));
             return response.IsSuccessStatusCode;
         }
         catch
@@ -179,7 +247,7 @@ public class ApiService : IApiService
         try
         {
             SetAuthHeader();
-            var categories = await _httpClient.GetFromJsonAsync<List<CategoryModel>>("/categories");
+            var categories = await _httpClient.GetFromJsonAsync<List<CategoryModel>>(GetFullUrl("categories"));
             return categories ?? new List<CategoryModel>();
         }
         catch
@@ -193,7 +261,7 @@ public class ApiService : IApiService
         try
         {
             SetAuthHeader();
-            var response = await _httpClient.PostAsJsonAsync("/categories", new { name, color });
+            var response = await _httpClient.PostAsJsonAsync(GetFullUrl("categories"), new { name, color });
 
             if (response.IsSuccessStatusCode)
             {
@@ -213,7 +281,7 @@ public class ApiService : IApiService
         try
         {
             SetAuthHeader();
-            var stats = await _httpClient.GetFromJsonAsync<Dictionary<string, int>>("/tasks/statistics");
+            var stats = await _httpClient.GetFromJsonAsync<Dictionary<string, int>>(GetFullUrl("tasks/statistics"));
             return stats ?? new Dictionary<string, int>();
         }
         catch
@@ -233,5 +301,10 @@ public class ApiService : IApiService
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Token { get; set; } = string.Empty;
+    }
+
+    private class ErrorResponse
+    {
+        public string? Message { get; set; }
     }
 }

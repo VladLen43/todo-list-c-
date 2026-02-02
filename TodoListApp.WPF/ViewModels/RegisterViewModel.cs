@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using TodoListApp.WPF.Helpers;
 using TodoListApp.WPF.Services;
@@ -88,15 +90,15 @@ public class RegisterViewModel : ViewModelBase
             return;
         }
 
-        var success = await _apiService.RegisterAsync(Username, Email, Password, FirstName, LastName);
+        var error = await _apiService.RegisterAsync(Username, Email, Password, FirstName, LastName);
 
-        if (success)
+        if (error == null)
         {
             RegisterSuccessful?.Invoke(this, EventArgs.Empty);
         }
         else
         {
-            ErrorMessage = "Ошибка регистрации. Возможно, пользователь уже существует";
+            ErrorMessage = error;
         }
     }
 

@@ -12,7 +12,7 @@ public partial class TaskEditWindow : Window
     public TaskEditWindow(TaskModel? existingTask)
     {
         InitializeComponent();
-        _viewModel = new TaskEditViewModel(new ApiService(), existingTask);
+        _viewModel = new TaskEditViewModel(App.ApiService, existingTask);
         DataContext = _viewModel;
 
         _viewModel.SaveCompleted += (s, e) =>

@@ -26,7 +26,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetTasks([FromQuery] TaskStatus? status = null, [FromQuery] int? categoryId = null)
+    public async Task<IActionResult> GetTasks([FromQuery] TodoListApp.Core.Enums.TaskStatus? status = null, [FromQuery] int? categoryId = null)
     {
         var userId = GetUserId();
         var tasks = await _taskService.GetTasksAsync(userId, status, categoryId);

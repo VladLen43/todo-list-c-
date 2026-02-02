@@ -7,12 +7,14 @@ namespace TodoListApp.WPF;
 
 public partial class App : Application
 {
+    public static IApiService ApiService { get; private set; } = null!;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        var apiService = new ApiService();
-        var loginViewModel = new LoginViewModel(apiService);
+        ApiService = new ApiService();
+        var loginViewModel = new LoginViewModel(ApiService);
         var loginWindow = new LoginWindow(loginViewModel);
         
         loginWindow.Show();

@@ -11,7 +11,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _viewModel = new MainViewModel(new ApiService());
+        _viewModel = new MainViewModel(App.ApiService);
         DataContext = _viewModel;
 
         _viewModel.TaskCreateRequested += (s, e) =>

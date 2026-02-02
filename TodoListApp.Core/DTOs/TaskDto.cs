@@ -8,7 +8,7 @@ public class TaskDto
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public TaskPriority Priority { get; set; }
-    public TaskStatus Status { get; set; }
+    public TodoListApp.Core.Enums.TaskStatus Status { get; set; }
     public int? CategoryId { get; set; }
     public string? CategoryName { get; set; }
     public DateTime CreatedAt { get; set; }

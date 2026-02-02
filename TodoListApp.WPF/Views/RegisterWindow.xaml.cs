@@ -11,7 +11,7 @@ public partial class RegisterWindow : Window
     public RegisterWindow()
     {
         InitializeComponent();
-        _viewModel = new RegisterViewModel(new ApiService());
+        _viewModel = new RegisterViewModel(App.ApiService);
         DataContext = _viewModel;
 
         _viewModel.RegisterSuccessful += (s, e) =>

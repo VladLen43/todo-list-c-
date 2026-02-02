@@ -15,7 +15,7 @@ public class TaskService : ITaskService
         _context = context;
     }
 
-    public async Task<List<TaskDto>> GetTasksAsync(int userId, TaskStatus? status = null, int? categoryId = null)
+    public async Task<List<TaskDto>> GetTasksAsync(int userId, TodoListApp.Core.Enums.TaskStatus? status = null, int? categoryId = null)
     {
         var query = _context.Tasks
             .Include(t => t.Category)
@@ -89,7 +89,7 @@ public class TaskService : ITaskService
             CategoryId = createTaskDto.CategoryId,
             DueDate = createTaskDto.DueDate,
             CreatedAt = DateTime.UtcNow,
-            Status = TaskStatus.New
+            Status = TodoListApp.Core.Enums.TaskStatus.New
         };
 
         _context.Tasks.Add(task);
@@ -138,11 +138,11 @@ public class TaskService : ITaskService
         if (updateTaskDto.Status.HasValue)
         {
             task.Status = updateTaskDto.Status.Value;
-            if (updateTaskDto.Status.Value == TaskStatus.Completed && task.CompletedAt == null)
+            if (updateTaskDto.Status.Value == TodoListApp.Core.Enums.TaskStatus.Completed && task.CompletedAt == null)
             {
                 task.CompletedAt = DateTime.UtcNow;
             }
-            else if (updateTaskDto.Status.Value != TaskStatus.Completed)
+            else if (updateTaskDto.Status.Value != TodoListApp.Core.Enums.TaskStatus.Completed)
             {
                 task.CompletedAt = null;
             }
@@ -200,10 +200,10 @@ public class TaskService : ITaskService
         return new Dictionary<string, int>
         {
             { "Total", tasks.Count },
-            { "New", tasks.Count(t => t.Status == TaskStatus.New) },
-            { "InProgress", tasks.Count(t => t.Status == TaskStatus.InProgress) },
-            { "Completed", tasks.Count(t => t.Status == TaskStatus.Completed) },
-            { "Overdue", tasks.Count(t => t.DueDate.HasValue && t.DueDate.Value < DateTime.UtcNow && t.Status != TaskStatus.Completed) }
+            { "New", tasks.Count(t => t.Status == TodoListApp.Core.Enums.TaskStatus.New) },
+            { "InProgress", tasks.Count(t => t.Status == TodoListApp.Core.Enums.TaskStatus.InProgress) },
+            { "Completed", tasks.Count(t => t.Status == TodoListApp.Core.Enums.TaskStatus.Completed) },
+            { "Overdue", tasks.Count(t => t.DueDate.HasValue && t.DueDate.Value < DateTime.UtcNow && t.Status != TodoListApp.Core.Enums.TaskStatus.Completed) }
         };
     }
 }

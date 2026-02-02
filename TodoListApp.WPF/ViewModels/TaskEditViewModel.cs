@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using TodoListApp.Core.Enums;
 using TodoListApp.WPF.Helpers;
@@ -6,6 +9,12 @@ using TodoListApp.WPF.Models;
 using TodoListApp.WPF.Services;
 
 namespace TodoListApp.WPF.ViewModels;
+
+public class PriorityItem
+{
+    public TaskPriority Value { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
 
 public class TaskEditViewModel : ViewModelBase
 {
@@ -17,6 +26,7 @@ public class TaskEditViewModel : ViewModelBase
     private int? _categoryId;
     private DateTime? _dueDate;
     private ObservableCollection<CategoryModel> _categories = new();
+    private ObservableCollection<PriorityItem> _priorities = new();
 
     public TaskEditViewModel(IApiService apiService, TaskModel? existingTask = null)
     {
@@ -35,6 +45,7 @@ public class TaskEditViewModel : ViewModelBase
         SaveCommand = new RelayCommand(async _ => await Save(), _ => CanSave());
         CancelCommand = new RelayCommand(_ => Cancel());
 
+        LoadPriorities();
         _ = LoadCategories();
     }
 
@@ -74,6 +85,12 @@ public class TaskEditViewModel : ViewModelBase
         set => SetProperty(ref _categories, value);
     }
 
+    public ObservableCollection<PriorityItem> Priorities
+    {
+        get => _priorities;
+        set => SetProperty(ref _priorities, value);
+    }
+
     public ICommand SaveCommand { get; }
     public ICommand CancelCommand { get; }
 
@@ -85,6 +102,17 @@ public class TaskEditViewModel : ViewModelBase
         return !string.IsNullOrWhiteSpace(Title);
     }
 
+    private void LoadPriorities()
+    {
+        Priorities = new ObservableCollection<PriorityItem>
+        {
+            new PriorityItem { Value = TaskPriority.Low, Name = "Низкий" },
+            new PriorityItem { Value = TaskPriority.Medium, Name = "Средний" },
+            new PriorityItem { Value = TaskPriority.High, Name = "Высокий" },
+            new PriorityItem { Value = TaskPriority.Critical, Name = "Критический" }
+        };
+    }
+
     private async Task LoadCategories()
     {
         var categories = await _apiService.GetCategoriesAsync();
@@ -93,33 +121,52 @@ public class TaskEditViewModel : ViewModelBase
 
     private async Task Save()
     {
-        if (_existingTask != null)
+        try
         {
-            // Update existing task
-            await _apiService.UpdateTaskAsync(
-                _existingTask.TaskId,
-                Title,
-                Description,
-                Priority,
-                null,
-                CategoryId,
-                DueDate
-            );
-        }
-        else
-        {
-            // Create new task
-            await _apiService.CreateTaskAsync(
-                Title,
-                Description,
-                Priority,
-                CategoryId,
-                DueDate,
-                new List<string>()
-            );
-        }
+            if (_existingTask != null)
+            {
+                // Update existing task
+                var result = await _apiService.UpdateTaskAsync(
+                    _existingTask.TaskId,
+                    Title,
+                    Description,
+                    Priority,
+                    null,
+                    CategoryId,
+                    DueDate
+                );
+                
+                if (result == null)
+                {
+                    System.Windows.MessageBox.Show("Не удалось обновить задачу. Проверьте подключение к серверу.", "Ошибка", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    return;
+                }
+            }
+            else
+            {
+                // Create new task
+                var result = await _apiService.CreateTaskAsync(
+                    Title,
+                    Description,
+                    Priority,
+                    CategoryId,
+                    DueDate,
+                    new List<string>()
+                );
+                
+                if (result == null)
+                {
+                    System.Windows.MessageBox.Show("Не удалось создать задачу. Проверьте подключение к серверу.", "Ошибка", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    return;
+                }
+            }
 
-        SaveCompleted?.Invoke(this, EventArgs.Empty);
+            SaveCompleted?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Ошибка при сохранении задачи: {ex.Message}", "Ошибка", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        }
     }
 
     private void Cancel()

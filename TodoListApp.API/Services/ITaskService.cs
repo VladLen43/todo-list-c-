@@ -5,7 +5,7 @@ namespace TodoListApp.API.Services;
 
 public interface ITaskService
 {
-    Task<List<TaskDto>> GetTasksAsync(int userId, TaskStatus? status = null, int? categoryId = null);
+    Task<List<TaskDto>> GetTasksAsync(int userId, TodoListApp.Core.Enums.TaskStatus? status = null, int? categoryId = null);
     Task<TaskDto?> GetTaskByIdAsync(int taskId, int userId);
     Task<TaskDto?> CreateTaskAsync(CreateTaskDto createTaskDto, int userId);
     Task<TaskDto?> UpdateTaskAsync(int taskId, UpdateTaskDto updateTaskDto, int userId);
